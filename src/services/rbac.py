@@ -35,6 +35,9 @@ ROLE_PERMISSIONS = {
         "baseline:create",
         "baseline:read",
         "baseline:export",
+        "import:upload",
+        "import:review",
+        "import:read",
     },
     "RequirementOwner": {
         "auth:login",
@@ -62,6 +65,9 @@ ROLE_PERMISSIONS = {
         "baseline:create",
         "baseline:read",
         "baseline:export",
+        "import:upload",
+        "import:review",
+        "import:read",
     },
     "Reviewer": {
         "auth:login",
@@ -83,6 +89,7 @@ ROLE_PERMISSIONS = {
         "evidence:attach",
         "baseline:read",
         "baseline:export",
+        "import:read",
     },
     "Approver": {
         "auth:login",
@@ -103,6 +110,7 @@ ROLE_PERMISSIONS = {
         "verify:read",
         "baseline:read",
         "baseline:export",
+        "import:read",
     },
     "Viewer": {
         "auth:login",

@@ -80,6 +80,7 @@ VerificationMethod = Literal["TEST", "ANALYSIS", "INSPECTION", "DEMONSTRATION"]
 VerificationStatus = Literal["NOT_RUN", "PASS", "FAIL", "BLOCKED"]
 EvidenceType = Literal["FILE", "LINK", "NOTE"]
 EvidenceRelatedType = Literal["TestCase", "VerificationResult"]
+ImportStatus = Literal["IN_PROGRESS", "COMPLETED", "FAILED"]
 
 
 class RequirementCreate(BaseModel):
@@ -325,3 +326,48 @@ class BaselineItemOut(BaseModel):
     requirement_version_id: str
     version_no: int
     snapshot_json: Dict[str, Any]
+
+
+class ImportSessionOut(BaseModel):
+    id: str
+    file_name: str
+    file_type: str
+    uploaded_by_user_id: str
+    uploaded_at: datetime
+    status: ImportStatus
+
+
+class ImportedClauseOut(BaseModel):
+    id: str
+    import_session_id: str
+    raw_text: str
+    location_ref: Optional[str]
+    clause_index: int
+    parsed_metadata: Dict[str, Any]
+    created_at: datetime
+
+
+class ClauseAcceptRequest(BaseModel):
+    title: Optional[str] = None
+    discipline: Optional[Discipline] = None
+    req_type_primary: Optional[RequirementType] = None
+    req_type_secondary: Optional[List[str]] = None
+    is_explanation: bool = False
+    status: WorkflowStatus = "Draft"
+    owner_user_id: Optional[str] = None
+
+
+class RequirementSourceClause(BaseModel):
+    source_reference_id: str
+    import_session_id: str
+    imported_clause_id: str
+    file_name: str
+    file_type: str
+    clause_text: str
+    location_ref: Optional[str]
+    created_at: datetime
+
+
+class RequirementSourceOut(BaseModel):
+    requirement_id: str
+    sources: List[RequirementSourceClause]

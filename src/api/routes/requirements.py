@@ -11,6 +11,8 @@ from src.api.deps import get_db, require_permission
 from src.api.schemas import (
     ApprovalRequest,
     ApprovalRecordOut,
+    RequirementSourceClause,
+    RequirementSourceOut,
     RequirementCreate,
     RequirementOut,
     RequirementUpdate,
@@ -20,7 +22,7 @@ from src.api.schemas import (
     RequirementType,
     WorkflowStatus,
 )
-from src.db.models import ApprovalRecord, Notification, Requirement, RequirementVersion, User
+from src.db.models import ApprovalRecord, ImportedClause, ImportSession, Notification, Requirement, RequirementVersion, SourceReference, User
 from src.services.audit import write_audit
 from src.services.requirements import (
     apply_requirement_updates,
@@ -497,3 +499,55 @@ def get_requirement_version(
         change_reason=version.change_reason,
         created_at=version.created_at,
     )
+
+
+@router.get("/{req_id}/source", response_model=RequirementSourceOut)
+def get_requirement_source(
+    req_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission("import:read")),
+) -> RequirementSourceOut:
+    req_uuid = parse_uuid(req_id, "requirement_id")
+    requirement = db.query(Requirement).filter(Requirement.id == req_uuid).one_or_none()
+    if not requirement:
+        raise AppError("NOT_FOUND", "Requirement not found.", 404)
+
+    refs = db.query(SourceReference).filter(SourceReference.requirement_id == req_uuid).all()
+    if not refs:
+        return RequirementSourceOut(requirement_id=req_id, sources=[])
+
+    session_ids = {ref.import_session_id for ref in refs}
+    clause_ids = {ref.imported_clause_id for ref in refs}
+    sessions = (
+        db.query(ImportSession).filter(ImportSession.id.in_(session_ids)).all()
+        if session_ids
+        else []
+    )
+    clauses = (
+        db.query(ImportedClause).filter(ImportedClause.id.in_(clause_ids)).all()
+        if clause_ids
+        else []
+    )
+    session_map = {session.id: session for session in sessions}
+    clause_map = {clause.id: clause for clause in clauses}
+
+    sources = []
+    for ref in refs:
+        session = session_map.get(ref.import_session_id)
+        clause = clause_map.get(ref.imported_clause_id)
+        if not session or not clause:
+            continue
+        sources.append(
+            RequirementSourceClause(
+                source_reference_id=str(ref.id),
+                import_session_id=str(ref.import_session_id),
+                imported_clause_id=str(ref.imported_clause_id),
+                file_name=session.file_name,
+                file_type=session.file_type,
+                clause_text=clause.raw_text,
+                location_ref=clause.location_ref,
+                created_at=ref.created_at,
+            )
+        )
+
+    return RequirementSourceOut(requirement_id=req_id, sources=sources)

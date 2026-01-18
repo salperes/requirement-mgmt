@@ -307,3 +307,58 @@ class Evidence(Base):
         Index("ix_evidence_related_type_related_id", "related_type", "related_id"),
         Index("ix_evidence_uploaded_by_user_id", "uploaded_by_user_id"),
     )
+
+
+class ImportSession(Base):
+    __tablename__ = "import_sessions"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    file_name = Column(String, nullable=False)
+    file_type = Column(String, nullable=False)
+    uploaded_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    uploaded_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    status = Column(String, nullable=False, default="IN_PROGRESS")
+
+    uploaded_by = relationship("User")
+    clauses = relationship("ImportedClause", back_populates="import_session", cascade="all, delete-orphan")
+    source_references = relationship("SourceReference", back_populates="import_session")
+
+
+class ImportedClause(Base):
+    __tablename__ = "imported_clauses"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    import_session_id = Column(Uuid(as_uuid=True), ForeignKey("import_sessions.id"), nullable=False)
+    raw_text = Column(String, nullable=False)
+    location_ref = Column(String, nullable=True)
+    clause_index = Column(Integer, nullable=False)
+    parsed_metadata = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    import_session = relationship("ImportSession", back_populates="clauses")
+    source_references = relationship("SourceReference", back_populates="imported_clause")
+
+    __table_args__ = (
+        Index("ix_imported_clauses_import_session_id", "import_session_id"),
+        Index("ix_imported_clauses_clause_index", "clause_index"),
+    )
+
+
+class SourceReference(Base):
+    __tablename__ = "source_references"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    requirement_id = Column(Uuid(as_uuid=True), ForeignKey("requirements.id"), nullable=False)
+    import_session_id = Column(Uuid(as_uuid=True), ForeignKey("import_sessions.id"), nullable=False)
+    imported_clause_id = Column(Uuid(as_uuid=True), ForeignKey("imported_clauses.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    requirement = relationship("Requirement")
+    import_session = relationship("ImportSession", back_populates="source_references")
+    imported_clause = relationship("ImportedClause", back_populates="source_references")
+
+    __table_args__ = (
+        Index("ix_source_references_requirement_id", "requirement_id"),
+        Index("ix_source_references_import_session_id", "import_session_id"),
+        Index("ix_source_references_imported_clause_id", "imported_clause_id"),
+    )

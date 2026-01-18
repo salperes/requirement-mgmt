@@ -9,6 +9,7 @@ from src.api.routes import (
     baselines,
     comments,
     health,
+    imports,
     notifications,
     requirements,
     test_cases,
@@ -16,6 +17,7 @@ from src.api.routes import (
     ui_module2,
     ui_module3,
     ui_module4,
+    ui_module5,
     verification,
 )
 from src.shared.errors import AppError, app_error_handler
@@ -46,9 +48,11 @@ app.include_router(requirements.router)
 app.include_router(baselines.router)
 app.include_router(comments.router)
 app.include_router(notifications.router)
+app.include_router(imports.router)
 app.include_router(traceability.router)
 app.include_router(test_cases.router)
 app.include_router(verification.router)
 app.include_router(ui_module2.router)
 app.include_router(ui_module3.router)
 app.include_router(ui_module4.router)
+app.include_router(ui_module5.router)
