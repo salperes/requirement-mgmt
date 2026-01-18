@@ -34,6 +34,13 @@ from src.shared.errors import AppError
 router = APIRouter(prefix="/requirements", tags=["requirements"])
 
 
+def parse_uuid(value: str, field_name: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except ValueError:
+        raise AppError("VALIDATION_ERROR", f"Invalid {field_name}.", 400)
+
+
 def to_requirement_out(req: Requirement) -> RequirementOut:
     return RequirementOut(
         id=str(req.id),
@@ -131,7 +138,8 @@ def get_requirement(
     db: Session = Depends(get_db),
     _: User = Depends(require_permission("req:read")),
 ) -> RequirementOut:
-    req = db.query(Requirement).filter(Requirement.id == req_id).one_or_none()
+    req_uuid = parse_uuid(req_id, "requirement_id")
+    req = db.query(Requirement).filter(Requirement.id == req_uuid).one_or_none()
     if not req:
         raise AppError("NOT_FOUND", "Requirement not found.", 404)
     return to_requirement_out(req)
@@ -145,7 +153,8 @@ def update_requirement(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("req:update")),
 ) -> RequirementOut:
-    req = db.query(Requirement).filter(Requirement.id == req_id).one_or_none()
+    req_uuid = parse_uuid(req_id, "requirement_id")
+    req = db.query(Requirement).filter(Requirement.id == req_uuid).one_or_none()
     if not req:
         raise AppError("NOT_FOUND", "Requirement not found.", 404)
 
@@ -202,7 +211,8 @@ def change_requirement_status(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("req:status:change")),
 ) -> RequirementOut:
-    req = db.query(Requirement).filter(Requirement.id == req_id).one_or_none()
+    req_uuid = parse_uuid(req_id, "requirement_id")
+    req = db.query(Requirement).filter(Requirement.id == req_uuid).one_or_none()
     if not req:
         raise AppError("NOT_FOUND", "Requirement not found.", 404)
     if req.status == payload.to_status:
@@ -258,7 +268,8 @@ def approve_requirement(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("req:approve")),
 ) -> RequirementOut:
-    req = db.query(Requirement).filter(Requirement.id == req_id).one_or_none()
+    req_uuid = parse_uuid(req_id, "requirement_id")
+    req = db.query(Requirement).filter(Requirement.id == req_uuid).one_or_none()
     if not req:
         raise AppError("NOT_FOUND", "Requirement not found.", 404)
     if req.status != "Review":
@@ -355,7 +366,8 @@ def delete_requirement(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("req:delete")),
 ) -> RequirementOut:
-    req = db.query(Requirement).filter(Requirement.id == req_id).one_or_none()
+    req_uuid = parse_uuid(req_id, "requirement_id")
+    req = db.query(Requirement).filter(Requirement.id == req_uuid).one_or_none()
     if not req:
         raise AppError("NOT_FOUND", "Requirement not found.", 404)
     if req.deleted_at is None:
@@ -393,9 +405,10 @@ def list_requirement_versions(
     db: Session = Depends(get_db),
     _: User = Depends(require_permission("req:versions:read")),
 ) -> List[RequirementVersionOut]:
+    req_uuid = parse_uuid(req_id, "requirement_id")
     versions = (
         db.query(RequirementVersion)
-        .filter(RequirementVersion.requirement_id == req_id)
+        .filter(RequirementVersion.requirement_id == req_uuid)
         .order_by(RequirementVersion.version_no.desc())
         .all()
     )
@@ -420,10 +433,11 @@ def get_requirement_version(
     db: Session = Depends(get_db),
     _: User = Depends(require_permission("req:versions:read")),
 ) -> RequirementVersionOut:
+    req_uuid = parse_uuid(req_id, "requirement_id")
     version = (
         db.query(RequirementVersion)
         .filter(
-            RequirementVersion.requirement_id == req_id,
+            RequirementVersion.requirement_id == req_uuid,
             RequirementVersion.version_no == version_no,
         )
         .one_or_none()

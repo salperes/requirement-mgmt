@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, Request
@@ -43,7 +44,11 @@ def list_comments(
     db: Session = Depends(get_db),
     _: User = Depends(require_permission("req:read")),
 ) -> List[CommentOut]:
-    requirement = db.query(Requirement).filter(Requirement.id == req_id).one_or_none()
+    try:
+        req_uuid = uuid.UUID(req_id)
+    except ValueError:
+        raise AppError("VALIDATION_ERROR", "Invalid requirement_id.", 400)
+    requirement = db.query(Requirement).filter(Requirement.id == req_uuid).one_or_none()
     if not requirement:
         raise AppError("NOT_FOUND", "Requirement not found.", 404)
     comments = (
@@ -64,12 +69,16 @@ def create_comment(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("req:comment:create")),
 ) -> CommentOut:
-    requirement = db.query(Requirement).filter(Requirement.id == req_id).one_or_none()
+    try:
+        req_uuid = uuid.UUID(req_id)
+    except ValueError:
+        raise AppError("VALIDATION_ERROR", "Invalid requirement_id.", 400)
+    requirement = db.query(Requirement).filter(Requirement.id == req_uuid).one_or_none()
     if not requirement:
         raise AppError("NOT_FOUND", "Requirement not found.", 404)
 
     comment = Comment(
-        requirement_id=req_id,
+        requirement_id=req_uuid,
         author_user_id=user.id,
         text=payload.text,
         created_at=datetime.utcnow(),
@@ -109,7 +118,11 @@ def update_comment(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("req:comment:edit")),
 ) -> CommentOut:
-    comment = db.query(Comment).filter(Comment.id == comment_id).one_or_none()
+    try:
+        comment_uuid = uuid.UUID(comment_id)
+    except ValueError:
+        raise AppError("VALIDATION_ERROR", "Invalid comment_id.", 400)
+    comment = db.query(Comment).filter(Comment.id == comment_uuid).one_or_none()
     if not comment or comment.deleted_at is not None:
         raise AppError("NOT_FOUND", "Comment not found.", 404)
     if comment.author_user_id != user.id and not is_admin(user):
@@ -153,7 +166,11 @@ def delete_comment(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("req:comment:delete")),
 ) -> CommentOut:
-    comment = db.query(Comment).filter(Comment.id == comment_id).one_or_none()
+    try:
+        comment_uuid = uuid.UUID(comment_id)
+    except ValueError:
+        raise AppError("VALIDATION_ERROR", "Invalid comment_id.", 400)
+    comment = db.query(Comment).filter(Comment.id == comment_uuid).one_or_none()
     if not comment or comment.deleted_at is not None:
         raise AppError("NOT_FOUND", "Comment not found.", 404)
     if comment.author_user_id != user.id and not is_admin(user):

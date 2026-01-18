@@ -241,3 +241,69 @@ class Suspect(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
     __table_args__ = (Index("ix_suspects_entity_type_entity_id", "entity_type", "entity_id"),)
+
+
+class TestCase(Base):
+    __tablename__ = "test_cases"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    test_code = Column(String, unique=True, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    verification_method = Column(String, nullable=False)
+    owner_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    owner = relationship("User")
+
+
+class VerificationResult(Base):
+    __tablename__ = "verification_results"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    test_case_id = Column(Uuid(as_uuid=True), ForeignKey("test_cases.id"), nullable=False)
+    requirement_id = Column(Uuid(as_uuid=True), ForeignKey("requirements.id"), nullable=False)
+    baseline_id = Column(Uuid(as_uuid=True), ForeignKey("baselines.id"), nullable=True)
+    status = Column(String, nullable=False)
+    executed_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    executed_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    comment = Column(String, nullable=True)
+
+    test_case = relationship("TestCase")
+    requirement = relationship("Requirement")
+    baseline = relationship("Baseline")
+    executed_by = relationship("User")
+
+    __table_args__ = (
+        Index("ix_verification_results_test_case_id", "test_case_id"),
+        Index("ix_verification_results_requirement_id", "requirement_id"),
+        Index("ix_verification_results_baseline_id", "baseline_id"),
+        Index("ix_verification_results_status", "status"),
+    )
+
+
+class Evidence(Base):
+    __tablename__ = "evidence"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    related_type = Column(String, nullable=False)
+    related_id = Column(Uuid(as_uuid=True), nullable=False)
+    evidence_type = Column(String, nullable=False)
+    uri_or_text = Column(String, nullable=False)
+    checksum = Column(String, nullable=True)
+    uploaded_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    uploaded_by = relationship("User")
+
+    __table_args__ = (
+        Index("ix_evidence_related_type_related_id", "related_type", "related_id"),
+        Index("ix_evidence_uploaded_by_user_id", "uploaded_by_user_id"),
+    )

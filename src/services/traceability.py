@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime
+import uuid
 from typing import Iterable, List, Optional, Sequence, Tuple
 
 from sqlalchemy.orm import Session
 
 from src.db.models import Link, Requirement, Suspect
+from src.services.verification import compute_verification_status
 
 ALLOWED_ENTITY_TYPES = {"Requirement", "Test", "Design", "Standard"}
 ALLOWED_LINK_TYPES = {"DERIVES", "SATISFIES", "VERIFIES", "REFERENCES"}
@@ -68,9 +70,13 @@ def detect_derives_cycle(session: Session, source_id: str, target_id: str) -> bo
 
 
 def ensure_requirement_exists(session: Session, requirement_id: str) -> bool:
+    try:
+        requirement_uuid = uuid.UUID(str(requirement_id))
+    except ValueError:
+        requirement_uuid = requirement_id
     return (
         session.query(Requirement)
-        .filter(Requirement.id == requirement_id)
+        .filter(Requirement.id == requirement_uuid)
         .filter(Requirement.deleted_at.is_(None))
         .count()
         > 0
@@ -215,6 +221,9 @@ def build_rtm_rows(
                     suspect_flag = True
                     break
 
+        verification_status = compute_verification_status(session, requirement_id, test_ids)
+        suspect_auto_cleared = verification_status == "PASS" and not suspect_flag
+
         coverage_status = "OK"
         if req_type_primary == "Functional":
             coverage_status = "COVERED" if (design_ids or test_ids) else "MISSING"
@@ -232,6 +241,8 @@ def build_rtm_rows(
                 "standard_clause_ids": standard_ids,
                 "suspect": suspect_flag,
                 "coverage_status": coverage_status,
+                "verification_status": verification_status,
+                "suspect_auto_cleared": suspect_auto_cleared,
             }
         )
     return rows

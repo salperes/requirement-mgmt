@@ -76,6 +76,10 @@ ApprovalDecision = Literal["APPROVE", "REJECT"]
 NotificationType = Literal["MENTION", "WORKFLOW", "APPROVAL"]
 TraceEntityType = Literal["Requirement", "Test", "Design", "Standard"]
 TraceLinkType = Literal["DERIVES", "SATISFIES", "VERIFIES", "REFERENCES"]
+VerificationMethod = Literal["TEST", "ANALYSIS", "INSPECTION", "DEMONSTRATION"]
+VerificationStatus = Literal["NOT_RUN", "PASS", "FAIL", "BLOCKED"]
+EvidenceType = Literal["FILE", "LINK", "NOTE"]
+EvidenceRelatedType = Literal["TestCase", "VerificationResult"]
 
 
 class RequirementCreate(BaseModel):
@@ -209,6 +213,8 @@ class RTMRow(BaseModel):
     standard_clause_ids: List[str]
     suspect: bool
     coverage_status: str
+    verification_status: VerificationStatus
+    suspect_auto_cleared: bool
 
 
 class ImpactItem(BaseModel):
@@ -220,6 +226,70 @@ class ImpactItem(BaseModel):
 class ImpactOut(BaseModel):
     requirement_id: str
     impacted: List[ImpactItem]
+
+
+class TestCaseCreate(BaseModel):
+    title: str = Field(min_length=1)
+    description: Optional[str] = None
+    verification_method: VerificationMethod
+    owner_user_id: Optional[str] = None
+
+
+class TestCaseUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    verification_method: Optional[VerificationMethod] = None
+    owner_user_id: Optional[str] = None
+
+
+class TestCaseOut(BaseModel):
+    id: str
+    test_code: str
+    title: str
+    description: Optional[str]
+    verification_method: str
+    owner_user_id: str
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime]
+
+
+class VerificationResultCreate(BaseModel):
+    test_case_id: str
+    requirement_id: str
+    baseline_id: Optional[str] = None
+    status: VerificationStatus
+    comment: Optional[str] = None
+
+
+class VerificationResultOut(BaseModel):
+    id: str
+    test_case_id: str
+    requirement_id: str
+    baseline_id: Optional[str]
+    status: str
+    executed_by_user_id: str
+    executed_at: datetime
+    comment: Optional[str]
+
+
+class EvidenceCreate(BaseModel):
+    related_type: EvidenceRelatedType
+    related_id: str
+    evidence_type: EvidenceType
+    uri_or_text: str = Field(min_length=1)
+    checksum: Optional[str] = None
+
+
+class EvidenceOut(BaseModel):
+    id: str
+    related_type: str
+    related_id: str
+    evidence_type: str
+    uri_or_text: str
+    checksum: Optional[str]
+    uploaded_by_user_id: str
+    created_at: datetime
 
 
 class BaselineCreate(BaseModel):

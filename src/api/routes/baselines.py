@@ -56,7 +56,7 @@ def create_baseline(
         baseline_tag=generate_baseline_tag(db),
         name=payload.name,
         description=payload.description,
-        created_by_user_id=str(user.id),
+        created_by_user_id=user.id,
     )
     db.add(baseline)
     db.flush()
@@ -105,7 +105,11 @@ def get_baseline(
     db: Session = Depends(get_db),
     _: User = Depends(require_permission("baseline:read")),
 ) -> BaselineOut:
-    baseline = db.query(Baseline).filter(Baseline.id == baseline_id).one_or_none()
+    try:
+        baseline_uuid = uuid.UUID(baseline_id)
+    except ValueError:
+        raise AppError("VALIDATION_ERROR", "Invalid baseline_id.", 400)
+    baseline = db.query(Baseline).filter(Baseline.id == baseline_uuid).one_or_none()
     if not baseline:
         raise AppError("NOT_FOUND", "Baseline not found.", 404)
     return to_baseline_out(baseline)
@@ -117,7 +121,11 @@ def list_baseline_items(
     db: Session = Depends(get_db),
     _: User = Depends(require_permission("baseline:read")),
 ) -> List[BaselineItemOut]:
-    items = db.query(BaselineItem).filter(BaselineItem.baseline_id == baseline_id).all()
+    try:
+        baseline_uuid = uuid.UUID(baseline_id)
+    except ValueError:
+        raise AppError("VALIDATION_ERROR", "Invalid baseline_id.", 400)
+    items = db.query(BaselineItem).filter(BaselineItem.baseline_id == baseline_uuid).all()
     return [
         BaselineItemOut(
             baseline_id=str(item.baseline_id),
@@ -138,11 +146,15 @@ def export_baseline(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("baseline:export")),
 ):
-    baseline = db.query(Baseline).filter(Baseline.id == baseline_id).one_or_none()
+    try:
+        baseline_uuid = uuid.UUID(baseline_id)
+    except ValueError:
+        raise AppError("VALIDATION_ERROR", "Invalid baseline_id.", 400)
+    baseline = db.query(Baseline).filter(Baseline.id == baseline_uuid).one_or_none()
     if not baseline:
         raise AppError("NOT_FOUND", "Baseline not found.", 404)
 
-    items = db.query(BaselineItem).filter(BaselineItem.baseline_id == baseline_id).all()
+    items = db.query(BaselineItem).filter(BaselineItem.baseline_id == baseline_uuid).all()
 
     rows = []
     for item in items:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import uuid
 from datetime import datetime
 from typing import List, Optional
 
@@ -198,7 +199,11 @@ def get_rtm(
     snapshots: dict[str, dict] = {}
 
     if baseline_id:
-        items = db.query(BaselineItem).filter(BaselineItem.baseline_id == baseline_id).all()
+        try:
+            baseline_uuid = uuid.UUID(baseline_id)
+        except ValueError:
+            raise AppError("VALIDATION_ERROR", "Invalid baseline_id.", 400)
+        items = db.query(BaselineItem).filter(BaselineItem.baseline_id == baseline_uuid).all()
         if not items:
             raise AppError("NOT_FOUND", "Baseline not found or empty.", 404)
         for item in items:
@@ -234,6 +239,8 @@ def get_rtm(
                 "Standard Clause ID",
                 "Suspect Flag",
                 "Coverage Status",
+                "Verification Status",
+                "Suspect Auto-Cleared",
             ]
         )
         for row in rows:
@@ -248,12 +255,17 @@ def get_rtm(
                     ",".join(row["standard_clause_ids"]),
                     str(row["suspect"]),
                     row["coverage_status"],
+                    row["verification_status"],
+                    str(row["suspect_auto_cleared"]),
                 ]
             )
         return PlainTextResponse(output.getvalue(), media_type="text/csv")
 
-    output.write("| Req Code | Requirement Title | Discipline | Type | Design Artifact ID | Test Case ID | Standard Clause ID | Suspect Flag | Coverage Status |\n")
-    output.write("| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
+    output.write(
+        "| Req Code | Requirement Title | Discipline | Type | Design Artifact ID | Test Case ID | "
+        "Standard Clause ID | Suspect Flag | Coverage Status | Verification Status | Suspect Auto-Cleared |\n"
+    )
+    output.write("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
     for row in rows:
         output.write(
             "| "
@@ -268,6 +280,8 @@ def get_rtm(
                     ",".join(row["standard_clause_ids"]),
                     str(row["suspect"]),
                     row["coverage_status"],
+                    row["verification_status"],
+                    str(row["suspect_auto_cleared"]),
                 ]
             )
             + " |\n"
@@ -281,7 +295,11 @@ def get_impact(
     db: Session = Depends(get_db),
     _: User = Depends(require_permission("trace:impact:read")),
 ) -> ImpactOut:
-    requirement = db.query(Requirement).filter(Requirement.id == req_id).one_or_none()
+    try:
+        req_uuid = uuid.UUID(req_id)
+    except ValueError:
+        raise AppError("VALIDATION_ERROR", "Invalid requirement_id.", 400)
+    requirement = db.query(Requirement).filter(Requirement.id == req_uuid).one_or_none()
     if not requirement:
         raise AppError("NOT_FOUND", "Requirement not found.", 404)
     impacts = build_downstream_paths(db, req_id)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Dict, Optional
+import uuid
 
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
@@ -47,9 +48,13 @@ def requirement_snapshot(requirement: Requirement) -> Dict[str, Any]:
 
 
 def next_version_no(session: Session, requirement_id: str) -> int:
+    try:
+        requirement_uuid = uuid.UUID(str(requirement_id))
+    except ValueError:
+        requirement_uuid = requirement_id
     max_version = (
         session.query(func.max(RequirementVersion.version_no))
-        .filter(RequirementVersion.requirement_id == requirement_id)
+        .filter(RequirementVersion.requirement_id == requirement_uuid)
         .scalar()
     )
     return int(max_version or 0) + 1
@@ -104,7 +109,11 @@ def filter_requirements_query(
     if status:
         q = q.filter(Requirement.status == status)
     if owner:
-        q = q.filter(Requirement.owner_user_id == owner)
+        try:
+            owner_uuid = uuid.UUID(str(owner))
+        except ValueError:
+            owner_uuid = owner
+        q = q.filter(Requirement.owner_user_id == owner_uuid)
     if not include_deleted:
         q = q.filter(Requirement.deleted_at.is_(None))
     return q

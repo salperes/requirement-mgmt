@@ -1,3 +1,5 @@
+import uuid
+
 from src.db.models import BaselineItem, RequirementVersion, User
 from src.db.session import SessionLocal
 from src.services.auth import get_or_create_role
@@ -67,7 +69,11 @@ def test_baseline_create_freezes_latest_versions(client):
     baseline_id = response.json()["id"]
 
     with SessionLocal() as session:
-        items = session.query(BaselineItem).filter(BaselineItem.baseline_id == baseline_id).all()
+        items = (
+            session.query(BaselineItem)
+            .filter(BaselineItem.baseline_id == uuid.UUID(baseline_id))
+            .all()
+        )
         assert len(items) == 2
         versions = {
             str(item.requirement_id): session.query(RequirementVersion)

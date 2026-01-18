@@ -1,3 +1,5 @@
+import uuid
+
 from sqlalchemy.orm import Session
 
 from src.db.models import RequirementVersion, User
@@ -49,7 +51,7 @@ def test_create_requirement_creates_version(client):
     with SessionLocal() as session:
         version = (
             session.query(RequirementVersion)
-            .filter(RequirementVersion.requirement_id == requirement_id)
+            .filter(RequirementVersion.requirement_id == uuid.UUID(requirement_id))
             .first()
         )
         assert version is not None
@@ -80,7 +82,7 @@ def test_update_requirement_creates_new_version(client):
     with SessionLocal() as session:
         versions = (
             session.query(RequirementVersion)
-            .filter(RequirementVersion.requirement_id == requirement["id"])
+            .filter(RequirementVersion.requirement_id == uuid.UUID(requirement["id"]))
             .order_by(RequirementVersion.version_no.asc())
             .all()
         )

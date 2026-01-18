@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import List
+import uuid
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -49,9 +50,13 @@ def read_notification(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("notif:mark_read")),
 ) -> NotificationOut:
+    try:
+        notification_uuid = uuid.UUID(notification_id)
+    except ValueError:
+        raise AppError("VALIDATION_ERROR", "Invalid notification_id.", 400)
     notification = (
         db.query(Notification)
-        .filter(Notification.id == notification_id)
+        .filter(Notification.id == notification_uuid)
         .filter(Notification.user_id == user.id)
         .one_or_none()
     )

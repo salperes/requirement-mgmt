@@ -1,3 +1,5 @@
+import uuid
+
 from src.db.models import ApprovalRecord, AuditLog, Notification, User
 from src.db.session import SessionLocal
 from src.services.auth import get_or_create_role
@@ -123,7 +125,7 @@ def test_approval_reject_requires_reason_and_records(client):
     with SessionLocal() as session:
         approval = (
             session.query(ApprovalRecord)
-            .filter(ApprovalRecord.requirement_id == req["id"])
+            .filter(ApprovalRecord.requirement_id == uuid.UUID(req["id"]))
             .order_by(ApprovalRecord.signed_at.desc())
             .first()
         )
