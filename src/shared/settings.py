@@ -1,7 +1,9 @@
-﻿from pydantic_settings import BaseSettings
+﻿from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="rms_", case_sensitive=False)
+
     app_name: str = "rms"
     environment: str = "local"
 
@@ -12,10 +14,6 @@ class Settings(BaseSettings):
     jwt_expires_minutes: int = 60
 
     request_id_header: str = "x-request-id"
-
-    class Config:
-        env_prefix = "rms_"
-        case_sensitive = False
 
 
 settings = Settings()

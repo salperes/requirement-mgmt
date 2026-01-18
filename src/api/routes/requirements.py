@@ -9,15 +9,17 @@ from sqlalchemy.orm import Session
 
 from src.api.deps import get_db, require_permission
 from src.api.schemas import (
+    ApprovalRequest,
     RequirementCreate,
     RequirementOut,
     RequirementUpdate,
     RequirementVersionOut,
+    StatusChangeRequest,
     Discipline,
     RequirementType,
     WorkflowStatus,
 )
-from src.db.models import Requirement, RequirementVersion, User
+from src.db.models import ApprovalRecord, Notification, Requirement, RequirementVersion, User
 from src.services.audit import write_audit
 from src.services.requirements import (
     apply_requirement_updates,
@@ -25,6 +27,8 @@ from src.services.requirements import (
     filter_requirements_query,
     generate_req_code,
 )
+from src.services.workflow import resolve_allowed_transition
+from src.services.traceability import set_suspects_from_requirement
 from src.shared.errors import AppError
 
 router = APIRouter(prefix="/requirements", tags=["requirements"])
@@ -147,6 +151,12 @@ def update_requirement(
 
     updates = payload.model_dump(exclude_unset=True)
     change_reason = updates.pop("change_reason", None)
+    if "status" in updates:
+        raise AppError(
+            "VALIDATION_ERROR",
+            "Status changes must use the workflow endpoint.",
+            400,
+        )
     if "owner_user_id" in updates and updates["owner_user_id"] is not None:
         try:
             updates["owner_user_id"] = uuid.UUID(updates["owner_user_id"])
@@ -169,6 +179,172 @@ def update_requirement(
         entity_id=str(req.id),
         payload={"fields": updates},
     )
+    if "text" in updates:
+        impacts = set_suspects_from_requirement(db, str(req.id), "requirement_update")
+        for entity_type, entity_id, path in impacts:
+            write_audit(
+                db,
+                request.state.request_id,
+                action="TRACE_SUSPECT_SET",
+                actor_user_id=str(user.id),
+                entity_type=entity_type,
+                entity_id=entity_id,
+                payload={"path": path, "reason": "requirement_update"},
+            )
+    return to_requirement_out(req)
+
+
+@router.post("/{req_id}/status", response_model=RequirementOut)
+def change_requirement_status(
+    req_id: str,
+    payload: StatusChangeRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("req:status:change")),
+) -> RequirementOut:
+    req = db.query(Requirement).filter(Requirement.id == req_id).one_or_none()
+    if not req:
+        raise AppError("NOT_FOUND", "Requirement not found.", 404)
+    if req.status == payload.to_status:
+        raise AppError("NO_CHANGES", "Requirement already in requested status.", 400)
+    if payload.to_status in ("Approved", "Rejected"):
+        raise AppError("VALIDATION_ERROR", "Use approval endpoint for Approved/Rejected.", 400)
+
+    role_names = [role.name for role in user.roles]
+    if not resolve_allowed_transition(req.status, payload.to_status, role_names):
+        raise AppError("VALIDATION_ERROR", "Invalid workflow transition.", 400)
+
+    previous_status = req.status
+    req.status = payload.to_status
+    req.updated_at = datetime.utcnow()
+    create_requirement_version(db, req, user.id, change_reason=payload.reason)
+    db.commit()
+    db.refresh(req)
+
+    write_audit(
+        db,
+        request.state.request_id,
+        action="REQ_STATUS_CHANGED",
+        actor_user_id=str(user.id),
+        entity_type="Requirement",
+        entity_id=str(req.id),
+        payload={
+            "requirement_id": str(req.id),
+            "req_code": req.req_code,
+            "from_status": previous_status,
+            "to_status": payload.to_status,
+            "reason": payload.reason,
+        },
+    )
+    impacts = set_suspects_from_requirement(db, str(req.id), "status_change")
+    for entity_type, entity_id, path in impacts:
+        write_audit(
+            db,
+            request.state.request_id,
+            action="TRACE_SUSPECT_SET",
+            actor_user_id=str(user.id),
+            entity_type=entity_type,
+            entity_id=entity_id,
+            payload={"path": path, "reason": "status_change"},
+        )
+    return to_requirement_out(req)
+
+
+@router.post("/{req_id}/approve", response_model=RequirementOut)
+def approve_requirement(
+    req_id: str,
+    payload: ApprovalRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("req:approve")),
+) -> RequirementOut:
+    req = db.query(Requirement).filter(Requirement.id == req_id).one_or_none()
+    if not req:
+        raise AppError("NOT_FOUND", "Requirement not found.", 404)
+    if req.status != "Review":
+        raise AppError("VALIDATION_ERROR", "Requirement must be in Review.", 400)
+
+    decision = payload.decision
+    if decision == "REJECT" and not payload.reason:
+        raise AppError("VALIDATION_ERROR", "Reason required for rejection.", 400)
+
+    target_status = "Approved" if decision == "APPROVE" else "Rejected"
+    role_names = [role.name for role in user.roles]
+    if not resolve_allowed_transition(req.status, target_status, role_names):
+        raise AppError("VALIDATION_ERROR", "Invalid workflow transition.", 400)
+
+    approval = ApprovalRecord(
+        requirement_id=req.id,
+        approver_user_id=user.id,
+        decision=decision,
+        reason=payload.reason,
+        signature_provider="placeholder",
+        signature_metadata={
+            "ip": request.client.host if request.client else None,
+            "user_agent": request.headers.get("user-agent"),
+            "reauth_password_provided": bool(payload.reauth_password),
+        },
+        signed_at=datetime.utcnow(),
+    )
+    db.add(approval)
+    db.add(
+        Notification(
+            user_id=req.owner_user_id,
+            type="APPROVAL",
+            title=f"Requirement {target_status}",
+            body=payload.reason,
+            entity_type="Requirement",
+            entity_id=str(req.id),
+            is_read=False,
+        )
+    )
+
+    previous_status = req.status
+    req.status = target_status
+    req.updated_at = datetime.utcnow()
+    create_requirement_version(db, req, user.id, change_reason=payload.reason)
+    db.commit()
+    db.refresh(req)
+
+    write_audit(
+        db,
+        request.state.request_id,
+        action="REQ_STATUS_CHANGED",
+        actor_user_id=str(user.id),
+        entity_type="Requirement",
+        entity_id=str(req.id),
+        payload={
+            "requirement_id": str(req.id),
+            "req_code": req.req_code,
+            "from_status": previous_status,
+            "to_status": target_status,
+            "reason": payload.reason,
+        },
+    )
+    write_audit(
+        db,
+        request.state.request_id,
+        action="REQ_APPROVAL_DECISION",
+        actor_user_id=str(user.id),
+        entity_type="ApprovalRecord",
+        entity_id=str(approval.id),
+        payload={
+            "requirement_id": str(req.id),
+            "decision": decision,
+            "reason": payload.reason,
+        },
+    )
+    impacts = set_suspects_from_requirement(db, str(req.id), "approval_decision")
+    for entity_type, entity_id, path in impacts:
+        write_audit(
+            db,
+            request.state.request_id,
+            action="TRACE_SUSPECT_SET",
+            actor_user_id=str(user.id),
+            entity_type=entity_type,
+            entity_id=entity_id,
+            payload={"path": path, "reason": "approval_decision"},
+        )
     return to_requirement_out(req)
 
 
@@ -197,6 +373,17 @@ def delete_requirement(
         entity_type="Requirement",
         entity_id=str(req.id),
     )
+    impacts = set_suspects_from_requirement(db, str(req.id), "requirement_delete")
+    for entity_type, entity_id, path in impacts:
+        write_audit(
+            db,
+            request.state.request_id,
+            action="TRACE_SUSPECT_SET",
+            actor_user_id=str(user.id),
+            entity_type=entity_type,
+            entity_id=entity_id,
+            payload={"path": path, "reason": "requirement_delete"},
+        )
     return to_requirement_out(req)
 
 

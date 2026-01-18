@@ -83,6 +83,7 @@ class Requirement(Base):
 
     owner = relationship("User")
     versions = relationship("RequirementVersion", back_populates="requirement")
+    comments = relationship("Comment", back_populates="requirement")
 
 
 class RequirementVersion(Base):
@@ -134,3 +135,109 @@ class BaselineItem(Base):
     requirement_version = relationship("RequirementVersion")
 
     __table_args__ = (Index("ix_baseline_items_baseline_id", "baseline_id"),)
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    requirement_id = Column(Uuid(as_uuid=True), ForeignKey("requirements.id"), nullable=False)
+    author_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    text = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    edited_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    requirement = relationship("Requirement", back_populates="comments")
+    author = relationship("User")
+    mentions = relationship("CommentMention", back_populates="comment", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_comments_requirement_id", "requirement_id"),
+        Index("ix_comments_author_user_id", "author_user_id"),
+        Index("ix_comments_created_at", "created_at"),
+    )
+
+
+class CommentMention(Base):
+    __tablename__ = "comment_mentions"
+
+    comment_id = Column(Uuid(as_uuid=True), ForeignKey("comments.id"), primary_key=True)
+    mentioned_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), primary_key=True)
+
+    comment = relationship("Comment", back_populates="mentions")
+    mentioned_user = relationship("User")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    body = Column(String, nullable=True)
+    entity_type = Column(String, nullable=True)
+    entity_id = Column(String, nullable=True)
+    is_read = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    user = relationship("User")
+
+    __table_args__ = (Index("ix_notifications_user_id_is_read_created_at", "user_id", "is_read", "created_at"),)
+
+
+class ApprovalRecord(Base):
+    __tablename__ = "approval_records"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    requirement_id = Column(Uuid(as_uuid=True), ForeignKey("requirements.id"), nullable=False)
+    approver_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    decision = Column(String, nullable=False)
+    reason = Column(String, nullable=True)
+    signature_provider = Column(String, nullable=False, default="placeholder")
+    signature_metadata = Column(JSON, nullable=False, default=dict)
+    signed_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    requirement = relationship("Requirement")
+    approver = relationship("User")
+
+    __table_args__ = (
+        Index("ix_approval_records_requirement_id", "requirement_id"),
+        Index("ix_approval_records_approver_user_id", "approver_user_id"),
+        Index("ix_approval_records_signed_at", "signed_at"),
+    )
+
+
+class Link(Base):
+    __tablename__ = "links"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_type = Column(String, nullable=False)
+    source_id = Column(String, nullable=False)
+    target_type = Column(String, nullable=False)
+    target_id = Column(String, nullable=False)
+    link_type = Column(String, nullable=False)
+    created_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_by = relationship("User")
+
+    __table_args__ = (
+        Index("ix_links_source_type_source_id", "source_type", "source_id"),
+        Index("ix_links_target_type_target_id", "target_type", "target_id"),
+        Index("ix_links_link_type", "link_type"),
+        Index("ix_links_deleted_at", "deleted_at"),
+    )
+
+
+class Suspect(Base):
+    __tablename__ = "suspects"
+
+    entity_type = Column(String, primary_key=True)
+    entity_id = Column(String, primary_key=True)
+    reason = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (Index("ix_suspects_entity_type_entity_id", "entity_type", "entity_id"),)

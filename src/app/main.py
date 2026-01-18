@@ -3,7 +3,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from src.api.routes import admin, auth, baselines, health, requirements
+from src.api.routes import admin, auth, baselines, comments, health, notifications, requirements, traceability
 from src.shared.errors import AppError, app_error_handler
 from src.shared.settings import settings
 
@@ -30,3 +30,6 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(requirements.router)
 app.include_router(baselines.router)
+app.include_router(comments.router)
+app.include_router(notifications.router)
+app.include_router(traceability.router)

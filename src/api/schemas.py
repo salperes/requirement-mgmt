@@ -72,6 +72,10 @@ RequirementType = Literal[
 ]
 
 WorkflowStatus = Literal["Draft", "Review", "Approved", "Rejected"]
+ApprovalDecision = Literal["APPROVE", "REJECT"]
+NotificationType = Literal["MENTION", "WORKFLOW", "APPROVAL"]
+TraceEntityType = Literal["Requirement", "Test", "Design", "Standard"]
+TraceLinkType = Literal["DERIVES", "SATISFIES", "VERIFIES", "REFERENCES"]
 
 
 class RequirementCreate(BaseModel):
@@ -93,7 +97,6 @@ class RequirementUpdate(BaseModel):
     req_type_primary: Optional[RequirementType] = None
     req_type_secondary: Optional[List[str]] = None
     is_explanation: Optional[bool] = None
-    status: Optional[WorkflowStatus] = None
     owner_user_id: Optional[str] = None
     change_reason: Optional[str] = None
 
@@ -123,6 +126,100 @@ class RequirementVersionOut(BaseModel):
     changed_by_user_id: str
     change_reason: Optional[str]
     created_at: datetime
+
+
+class StatusChangeRequest(BaseModel):
+    to_status: WorkflowStatus
+    reason: Optional[str] = None
+
+
+class ApprovalRequest(BaseModel):
+    decision: ApprovalDecision
+    reason: Optional[str] = None
+    reauth_password: Optional[str] = None
+
+
+class ApprovalRecordOut(BaseModel):
+    id: str
+    requirement_id: str
+    approver_user_id: str
+    decision: str
+    reason: Optional[str]
+    signature_provider: str
+    signature_metadata: Dict[str, Any]
+    signed_at: datetime
+
+
+class CommentCreate(BaseModel):
+    text: str = Field(min_length=1)
+
+
+class CommentUpdate(BaseModel):
+    text: str = Field(min_length=1)
+
+
+class CommentOut(BaseModel):
+    id: str
+    requirement_id: str
+    author_user_id: str
+    text: str
+    created_at: datetime
+    edited_at: Optional[datetime]
+    deleted_at: Optional[datetime]
+
+
+class NotificationOut(BaseModel):
+    id: str
+    type: NotificationType
+    title: str
+    body: Optional[str]
+    entity_type: Optional[str]
+    entity_id: Optional[str]
+    is_read: bool
+    created_at: datetime
+
+
+class LinkCreate(BaseModel):
+    source_type: TraceEntityType
+    source_id: str
+    target_type: TraceEntityType
+    target_id: str
+    link_type: TraceLinkType
+
+
+class LinkOut(BaseModel):
+    id: str
+    source_type: str
+    source_id: str
+    target_type: str
+    target_id: str
+    link_type: str
+    created_by_user_id: str
+    created_at: datetime
+    deleted_at: Optional[datetime]
+
+
+class RTMRow(BaseModel):
+    req_code: Optional[str]
+    requirement_title: Optional[str]
+    discipline: Optional[str]
+    req_type_primary: Optional[str]
+    design_artifact_ids: List[str]
+    test_case_ids: List[str]
+    standard_clause_ids: List[str]
+    suspect: bool
+    coverage_status: str
+
+
+class ImpactItem(BaseModel):
+    entity_type: str
+    entity_id: str
+    path: List[str]
+
+
+class ImpactOut(BaseModel):
+    requirement_id: str
+    impacted: List[ImpactItem]
 
 
 class BaselineCreate(BaseModel):

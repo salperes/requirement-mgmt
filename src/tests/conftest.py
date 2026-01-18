@@ -1,9 +1,12 @@
 ﻿import os
 import tempfile
+import warnings
 from typing import Generator
 
 import pytest
 from fastapi.testclient import TestClient
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="passlib\\.utils")
 
 
 @pytest.fixture(scope="session", autouse=True)
