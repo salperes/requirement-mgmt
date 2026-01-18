@@ -1,0 +1,24 @@
+﻿services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: rms
+      POSTGRES_PASSWORD: rms
+      POSTGRES_DB: rms
+    ports:
+      - "5432:5432"
+    volumes:
+      - rms_db:/var/lib/postgresql/data
+
+  app:
+    build: .
+    environment:
+      RMS_DATABASE_URL: postgresql+psycopg2://rms:rms@db:5432/rms
+      RMS_JWT_SECRET: dev-secret
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+volumes:
+  rms_db:
