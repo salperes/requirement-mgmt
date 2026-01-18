@@ -1,7 +1,7 @@
 ﻿from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -49,3 +49,100 @@ class AuditLogOut(BaseModel):
     entity_id: Optional[str]
     payload_json: Dict[str, Any]
     created_at: datetime
+
+
+Discipline = Literal[
+    "System",
+    "Mechanical",
+    "Software",
+    "Electronics",
+    "Automation",
+    "Optics",
+    "Other",
+]
+
+RequirementType = Literal[
+    "Functional",
+    "Performance",
+    "Safety",
+    "Security",
+    "Regulatory",
+    "Interface",
+    "Constraint",
+]
+
+WorkflowStatus = Literal["Draft", "Review", "Approved", "Rejected"]
+
+
+class RequirementCreate(BaseModel):
+    title: Optional[str] = None
+    text: str = Field(min_length=1)
+    discipline: Discipline
+    req_type_primary: RequirementType
+    req_type_secondary: Optional[List[str]] = None
+    is_explanation: bool = False
+    status: WorkflowStatus = "Draft"
+    owner_user_id: Optional[str] = None
+    source: str = "manual"
+
+
+class RequirementUpdate(BaseModel):
+    title: Optional[str] = None
+    text: Optional[str] = None
+    discipline: Optional[Discipline] = None
+    req_type_primary: Optional[RequirementType] = None
+    req_type_secondary: Optional[List[str]] = None
+    is_explanation: Optional[bool] = None
+    status: Optional[WorkflowStatus] = None
+    owner_user_id: Optional[str] = None
+    change_reason: Optional[str] = None
+
+
+class RequirementOut(BaseModel):
+    id: str
+    req_code: str
+    title: Optional[str]
+    text: str
+    discipline: str
+    req_type_primary: str
+    req_type_secondary: Optional[List[str]]
+    is_explanation: bool
+    status: str
+    owner_user_id: str
+    source: str
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime]
+
+
+class RequirementVersionOut(BaseModel):
+    id: str
+    requirement_id: str
+    version_no: int
+    snapshot_json: Dict[str, Any]
+    changed_by_user_id: str
+    change_reason: Optional[str]
+    created_at: datetime
+
+
+class BaselineCreate(BaseModel):
+    name: str = Field(min_length=1)
+    description: Optional[str] = None
+    requirement_ids: List[str] = Field(min_length=1)
+
+
+class BaselineOut(BaseModel):
+    id: str
+    baseline_tag: str
+    name: str
+    description: Optional[str]
+    created_by_user_id: str
+    created_at: datetime
+
+
+class BaselineItemOut(BaseModel):
+    baseline_id: str
+    requirement_id: str
+    requirement_version_id: str
+    version_no: int
+    snapshot_json: Dict[str, Any]
