@@ -1,4 +1,4 @@
-# Module-3 Spec — Traceability + Impact Analysis
+﻿# Module-3 Spec — Traceability + Impact Analysis
 
 ## Objective
 Provide deterministic, auditable traceability across system artifacts and enable controlled impact analysis when requirements change.
@@ -18,7 +18,7 @@ Provide deterministic, auditable traceability across system artifacts and enable
 4. **Coverage Metrics**
    - Missing links
    - Unverified requirements
-   - Orphan tests or design artifacts
+   - Orphan tests (no VERIFIES link)
 5. **RBAC Enforcement**
    - Only authorized roles can create/delete links
 

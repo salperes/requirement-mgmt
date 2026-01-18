@@ -12,6 +12,9 @@
   - RBAC: req:approve
   - Creates ApprovalRecord + AuditLog
   - If REJECT: reason required
+- GET /requirements/{id}/approvals
+  - RBAC: req:read
+  - Returns ApprovalRecord list (latest first)
 
 ## Comments
 - GET /requirements/{id}/comments

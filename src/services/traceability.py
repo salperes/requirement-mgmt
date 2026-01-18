@@ -5,9 +5,10 @@ from datetime import datetime
 import uuid
 from typing import Iterable, List, Optional, Sequence, Tuple
 
+from sqlalchemy import String, cast, func, select
 from sqlalchemy.orm import Session
 
-from src.db.models import Link, Requirement, Suspect
+from src.db.models import Link, Requirement, Suspect, TestCase
 from src.services.verification import compute_verification_status
 
 ALLOWED_ENTITY_TYPES = {"Requirement", "Test", "Design", "Standard"}
@@ -246,3 +247,21 @@ def build_rtm_rows(
             }
         )
     return rows
+
+
+def list_orphan_tests(session: Session) -> List[TestCase]:
+    linked_tests = (
+        session.query(func.replace(Link.target_id, "-", "").label("target_id"))
+        .filter(Link.deleted_at.is_(None))
+        .filter(Link.link_type == "VERIFIES")
+        .filter(Link.target_type == "Test")
+        .distinct()
+        .subquery()
+    )
+    linked_select = select(linked_tests.c.target_id)
+    return (
+        session.query(TestCase)
+        .filter(TestCase.deleted_at.is_(None))
+        .filter(~func.replace(cast(TestCase.id, String), "-", "").in_(linked_select))
+        .all()
+    )

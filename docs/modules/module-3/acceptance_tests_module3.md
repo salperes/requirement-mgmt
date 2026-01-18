@@ -1,4 +1,4 @@
-# Acceptance Tests — Module-3
+﻿# Acceptance Tests — Module-3
 
 ## Link Management
 - Owner can create links; Viewer cannot.
@@ -8,6 +8,9 @@
 
 ## RTM
 - RTM export includes suspect flags.
+
+## Orphans
+- Orphan report lists tests with no VERIFIES link.
 
 ## Admin Override
 - Admin can clear suspect.

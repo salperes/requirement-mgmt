@@ -1,4 +1,4 @@
-# UI Screens — Module-3 (MVP)
+﻿# UI Screens — Module-3 (MVP)
 
 ## RTM View
 - Table-based RTM
@@ -10,3 +10,6 @@
 
 ## Link Management
 - Add/delete links (RBAC controlled)
+
+## UI Route
+- GET /ui/module-3 (MVP interactive screen)

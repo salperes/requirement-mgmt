@@ -40,7 +40,12 @@ def list_notifications(
     q = db.query(Notification).filter(Notification.user_id == user.id)
     if unread_only:
         q = q.filter(Notification.is_read.is_(False))
-    notifications = q.order_by(Notification.created_at.desc()).offset(offset).limit(page_size).all()
+    notifications = (
+        q.order_by(Notification.is_read.asc(), Notification.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
     return [to_notification_out(notification) for notification in notifications]
 
 

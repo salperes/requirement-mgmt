@@ -228,6 +228,18 @@ class ImpactOut(BaseModel):
     impacted: List[ImpactItem]
 
 
+class OrphanItem(BaseModel):
+    entity_type: TraceEntityType
+    entity_id: str
+    label: Optional[str] = None
+
+
+class OrphanReport(BaseModel):
+    tests: List[OrphanItem]
+    designs: List[OrphanItem]
+    standards: List[OrphanItem]
+
+
 class TestCaseCreate(BaseModel):
     title: str = Field(min_length=1)
     description: Optional[str] = None

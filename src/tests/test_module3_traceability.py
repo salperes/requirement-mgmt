@@ -42,6 +42,17 @@ def create_requirement(client, token: str, req_type_primary: str = "Functional")
     return response.json()
 
 
+def create_test_case(client, token: str) -> dict:
+    payload = {
+        "title": "Test case title",
+        "description": "Test case description",
+        "verification_method": "TEST",
+    }
+    response = client.post("/test-cases", json=payload, headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    return response.json()
+
+
 def test_link_create_permission_and_impact(client):
     seed_user("owner-trace@example.com", "Password123!", ["RequirementOwner"])
     seed_user("viewer-trace@example.com", "Password123!", ["Viewer"])
@@ -121,3 +132,31 @@ def test_requirement_update_sets_suspect_and_rtm_flag(client):
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert clear.status_code == 200
+
+
+def test_orphan_report_lists_unlinked_tests(client):
+    seed_user("owner-orphan@example.com", "Password123!", ["RequirementOwner"])
+    owner_token = login(client, "owner-orphan@example.com", "Password123!")
+
+    test_case = create_test_case(client, owner_token)
+
+    report = client.get("/orphans", headers={"Authorization": f"Bearer {owner_token}"})
+    assert report.status_code == 200
+    tests = report.json()["tests"]
+    assert any(item["entity_id"] == test_case["id"] for item in tests)
+
+    req = create_requirement(client, owner_token)
+    link_payload = {
+        "source_type": "Requirement",
+        "source_id": req["id"],
+        "target_type": "Test",
+        "target_id": test_case["id"],
+        "link_type": "VERIFIES",
+    }
+    link = client.post("/links", json=link_payload, headers={"Authorization": f"Bearer {owner_token}"})
+    assert link.status_code == 200
+
+    report_after = client.get("/orphans", headers={"Authorization": f"Bearer {owner_token}"})
+    assert report_after.status_code == 200
+    tests_after = report_after.json()["tests"]
+    assert all(item["entity_id"] != test_case["id"] for item in tests_after)

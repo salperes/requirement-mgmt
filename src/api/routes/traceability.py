@@ -11,7 +11,7 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_db, require_permission
-from src.api.schemas import ImpactOut, ImpactItem, LinkCreate, LinkOut, RTMRow
+from src.api.schemas import ImpactOut, ImpactItem, LinkCreate, LinkOut, OrphanItem, OrphanReport, RTMRow
 from src.db.models import BaselineItem, Link, Requirement, Suspect, User
 from src.services.audit import write_audit
 from src.services.traceability import (
@@ -20,6 +20,7 @@ from src.services.traceability import (
     detect_derives_cycle,
     ensure_requirement_exists,
     find_links,
+    list_orphan_tests,
     set_suspects_from_requirement,
     validate_link_payload,
 )
@@ -193,6 +194,9 @@ def get_rtm(
     db: Session = Depends(get_db),
     _: User = Depends(require_permission("trace:rtm:read")),
     baseline_id: Optional[str] = None,
+    discipline: Optional[str] = None,
+    req_type_primary: Optional[str] = Query(None, alias="type"),
+    suspect: Optional[bool] = None,
     format: str = Query("json", pattern="^(json|csv|md)$"),
 ):
     requirement_ids: List[str] = []
@@ -221,6 +225,12 @@ def get_rtm(
             }
 
     rows = build_rtm_rows(db, requirement_ids, snapshots)
+    if discipline:
+        rows = [row for row in rows if row.get("discipline") == discipline]
+    if req_type_primary:
+        rows = [row for row in rows if row.get("req_type_primary") == req_type_primary]
+    if suspect is not None:
+        rows = [row for row in rows if row.get("suspect") is suspect]
 
     if format == "json":
         return [RTMRow(**row) for row in rows]
@@ -338,3 +348,25 @@ def clear_suspect(
         entity_id=entity_id,
     )
     return {"status": "cleared"}
+
+
+@router.get("/orphans", response_model=OrphanReport)
+def list_orphans(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission("trace:rtm:read")),
+    entity_type: Optional[str] = Query(None, pattern="^(Test|Design|Standard)$"),
+) -> OrphanReport:
+    tests: List[OrphanItem] = []
+    designs: List[OrphanItem] = []
+    standards: List[OrphanItem] = []
+
+    if entity_type in (None, "Test"):
+        for test_case in list_orphan_tests(db):
+            tests.append(
+                OrphanItem(
+                    entity_type="Test",
+                    entity_id=str(test_case.id),
+                    label=f"{test_case.test_code} - {test_case.title}",
+                )
+            )
+    return OrphanReport(tests=tests, designs=designs, standards=standards)

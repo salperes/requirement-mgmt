@@ -216,3 +216,63 @@ def test_comment_edit_delete_audited_and_ownership(client):
         assert "REQ_COMMENT_CREATED" in actions
         assert "REQ_COMMENT_EDITED" in actions
         assert "REQ_COMMENT_DELETED" in actions
+
+
+def test_status_change_creates_workflow_notification_for_owner(client):
+    seed_user("owner-module2f@example.com", "Password123!", ["RequirementOwner"])
+    seed_user("admin-module2@example.com", "Password123!", ["Admin"])
+
+    owner_token = login(client, "owner-module2f@example.com", "Password123!")
+    admin_token = login(client, "admin-module2@example.com", "Password123!")
+
+    req = create_requirement(client, owner_token, "Workflow notification requirement")
+
+    response = client.post(
+        f"/requirements/{req['id']}/status",
+        json={"to_status": "Review", "reason": "escalate"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 200
+
+    with SessionLocal() as session:
+        owner = session.query(User).filter(User.email == "owner-module2f@example.com").one()
+        notification = (
+            session.query(Notification)
+            .filter(Notification.user_id == owner.id)
+            .filter(Notification.type == "WORKFLOW")
+            .order_by(Notification.created_at.desc())
+            .first()
+        )
+        assert notification is not None
+
+
+def test_list_approvals_endpoint_returns_latest_first(client):
+    seed_user("owner-module2g@example.com", "Password123!", ["RequirementOwner"])
+    seed_user("approver-module2g@example.com", "Password123!", ["Approver"])
+
+    owner_token = login(client, "owner-module2g@example.com", "Password123!")
+    approver_token = login(client, "approver-module2g@example.com", "Password123!")
+
+    req = create_requirement(client, owner_token, "Approval list requirement")
+    review = client.post(
+        f"/requirements/{req['id']}/status",
+        json={"to_status": "Review"},
+        headers={"Authorization": f"Bearer {owner_token}"},
+    )
+    assert review.status_code == 200
+
+    approve = client.post(
+        f"/requirements/{req['id']}/approve",
+        json={"decision": "APPROVE"},
+        headers={"Authorization": f"Bearer {approver_token}"},
+    )
+    assert approve.status_code == 200
+
+    approvals = client.get(
+        f"/requirements/{req['id']}/approvals",
+        headers={"Authorization": f"Bearer {approver_token}"},
+    )
+    assert approvals.status_code == 200
+    payload = approvals.json()
+    assert isinstance(payload, list)
+    assert payload and payload[0]["decision"] == "APPROVE"

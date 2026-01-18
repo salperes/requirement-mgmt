@@ -1,4 +1,4 @@
-# Module-2 Spec — Workflow + Collaboration + E-Sign Placeholder
+﻿# Module-2 Spec — Workflow + Collaboration + E-Sign Placeholder
 
 ## Objective
 Implement a controlled requirement lifecycle with collaboration and approvable records, while keeping complexity low and remaining compatible with later modules.
@@ -13,10 +13,12 @@ Implement a controlled requirement lifecycle with collaboration and approvable r
 3. **Mentions & Notifications (MVP)**
    - Parse `@email` or `@username` in comments
    - Create notification records for mentioned users
+   - Workflow notifications on status change (Draft/Review)
 4. **Approval Records + E-sign Placeholder**
    - Approver can approve/reject with a reason
    - Store approval record + “signature placeholder” metadata
    - Immutable audit events for transitions and approvals
+   - Provide approval history endpoint for UI panels
 5. **RBAC updates**
    - Reviewer: can comment, optionally move Draft↔Review
    - Approver: can Approve/Reject (Review→Approved/Rejected)

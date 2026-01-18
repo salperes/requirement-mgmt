@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from src.api.deps import get_db, require_permission
 from src.api.schemas import (
     ApprovalRequest,
+    ApprovalRecordOut,
     RequirementCreate,
     RequirementOut,
     RequirementUpdate,
@@ -228,6 +229,18 @@ def change_requirement_status(
     req.status = payload.to_status
     req.updated_at = datetime.utcnow()
     create_requirement_version(db, req, user.id, change_reason=payload.reason)
+    if user.id != req.owner_user_id:
+        db.add(
+            Notification(
+                user_id=req.owner_user_id,
+                type="WORKFLOW",
+                title=f"Requirement moved to {payload.to_status}",
+                body=payload.reason,
+                entity_type="Requirement",
+                entity_id=str(req.id),
+                is_read=False,
+            )
+        )
     db.commit()
     db.refresh(req)
 
@@ -357,6 +370,37 @@ def approve_requirement(
             payload={"path": path, "reason": "approval_decision"},
         )
     return to_requirement_out(req)
+
+
+@router.get("/{req_id}/approvals", response_model=List[ApprovalRecordOut])
+def list_requirement_approvals(
+    req_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission("req:read")),
+) -> List[ApprovalRecordOut]:
+    req_uuid = parse_uuid(req_id, "requirement_id")
+    req = db.query(Requirement).filter(Requirement.id == req_uuid).one_or_none()
+    if not req:
+        raise AppError("NOT_FOUND", "Requirement not found.", 404)
+    approvals = (
+        db.query(ApprovalRecord)
+        .filter(ApprovalRecord.requirement_id == req_uuid)
+        .order_by(ApprovalRecord.signed_at.desc())
+        .all()
+    )
+    return [
+        ApprovalRecordOut(
+            id=str(approval.id),
+            requirement_id=str(approval.requirement_id),
+            approver_user_id=str(approval.approver_user_id),
+            decision=approval.decision,
+            reason=approval.reason,
+            signature_provider=approval.signature_provider,
+            signature_metadata=approval.signature_metadata,
+            signed_at=approval.signed_at,
+        )
+        for approval in approvals
+    ]
 
 
 @router.delete("/{req_id}", response_model=RequirementOut)
