@@ -247,12 +247,16 @@ class TestCaseCreate(BaseModel):
     verification_method: VerificationMethod
     owner_user_id: Optional[str] = None
 
+    __test__ = False
+
 
 class TestCaseUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     verification_method: Optional[VerificationMethod] = None
     owner_user_id: Optional[str] = None
+
+    __test__ = False
 
 
 class TestCaseOut(BaseModel):
@@ -265,6 +269,8 @@ class TestCaseOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime]
+
+    __test__ = False
 
 
 class VerificationResultCreate(BaseModel):
