@@ -38,6 +38,10 @@ ROLE_PERMISSIONS = {
         "import:upload",
         "import:review",
         "import:read",
+        "standard:manage",
+        "compliance:map",
+        "compliance:read",
+        "compliance:export",
     },
     "RequirementOwner": {
         "auth:login",
@@ -68,6 +72,9 @@ ROLE_PERMISSIONS = {
         "import:upload",
         "import:review",
         "import:read",
+        "compliance:map",
+        "compliance:read",
+        "compliance:export",
     },
     "Reviewer": {
         "auth:login",
@@ -90,6 +97,8 @@ ROLE_PERMISSIONS = {
         "baseline:read",
         "baseline:export",
         "import:read",
+        "compliance:read",
+        "compliance:export",
     },
     "Approver": {
         "auth:login",
@@ -111,6 +120,8 @@ ROLE_PERMISSIONS = {
         "baseline:read",
         "baseline:export",
         "import:read",
+        "compliance:read",
+        "compliance:export",
     },
     "Viewer": {
         "auth:login",
@@ -125,6 +136,8 @@ ROLE_PERMISSIONS = {
         "verify:read",
         "baseline:read",
         "baseline:export",
+        "compliance:read",
+        "compliance:export",
     },
 }
 

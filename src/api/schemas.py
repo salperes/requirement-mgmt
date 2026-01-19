@@ -328,6 +328,86 @@ class BaselineItemOut(BaseModel):
     snapshot_json: Dict[str, Any]
 
 
+class StandardCreate(BaseModel):
+    code: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    version: Optional[str] = None
+    publication_year: Optional[int] = None
+    publisher: Optional[str] = None
+
+
+class StandardOut(BaseModel):
+    id: str
+    code: str
+    title: str
+    version: Optional[str]
+    publication_year: Optional[int]
+    publisher: Optional[str]
+    created_at: datetime
+
+
+class StandardClauseCreate(BaseModel):
+    clause_code: str = Field(min_length=1)
+    title: Optional[str] = None
+    text: str = Field(min_length=1)
+
+
+class StandardClauseOut(BaseModel):
+    id: str
+    standard_id: str
+    clause_code: str
+    title: Optional[str]
+    text: str
+    created_at: datetime
+
+
+class ComplianceMappingCreate(BaseModel):
+    requirement_id: str
+    standard_clause_id: str
+    compliance_status: str = Field(min_length=1)
+    justification: Optional[str] = None
+
+
+class ComplianceMappingOut(BaseModel):
+    id: str
+    requirement_id: str
+    standard_clause_id: str
+    compliance_status: str
+    justification: Optional[str]
+    created_by_user_id: str
+    created_at: datetime
+
+
+class ComplianceRow(BaseModel):
+    baseline_id: Optional[str]
+    standard_id: Optional[str]
+    requirement_id: str
+    req_code: Optional[str]
+    requirement_title: Optional[str]
+    standard_clause_id: str
+    clause_code: str
+    clause_title: Optional[str]
+    compliance_status: str
+    justification: Optional[str]
+
+
+class ComplianceGapItem(BaseModel):
+    requirement_id: str
+    req_code: Optional[str]
+    standard_clause_id: str
+    clause_code: str
+    compliance_status: Optional[str]
+
+
+class ComplianceGapOut(BaseModel):
+    missing_mappings: List[ComplianceGapItem]
+    non_compliant: List[ComplianceGapItem]
+
+
+class ComplianceReportOut(BaseModel):
+    rows: List[ComplianceRow]
+    gap_analysis: ComplianceGapOut
+
 class ImportSessionOut(BaseModel):
     id: str
     file_name: str

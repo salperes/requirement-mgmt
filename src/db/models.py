@@ -362,3 +362,60 @@ class SourceReference(Base):
         Index("ix_source_references_import_session_id", "import_session_id"),
         Index("ix_source_references_imported_clause_id", "imported_clause_id"),
     )
+
+
+class Standard(Base):
+    __tablename__ = "standards"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code = Column(String, nullable=False, index=True)
+    title = Column(String, nullable=False)
+    version = Column(String, nullable=True)
+    publication_year = Column(Integer, nullable=True)
+    publisher = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    clauses = relationship("StandardClause", back_populates="standard", cascade="all, delete-orphan")
+
+    __table_args__ = (Index("ix_standards_code_version", "code", "version", unique=False),)
+
+
+class StandardClause(Base):
+    __tablename__ = "standard_clauses"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    standard_id = Column(Uuid(as_uuid=True), ForeignKey("standards.id"), nullable=False)
+    clause_code = Column(String, nullable=False)
+    title = Column(String, nullable=True)
+    text = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    standard = relationship("Standard", back_populates="clauses")
+    mappings = relationship("ComplianceMapping", back_populates="standard_clause", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_standard_clauses_standard_id", "standard_id"),
+        Index("ix_standard_clauses_clause_code", "clause_code"),
+    )
+
+
+class ComplianceMapping(Base):
+    __tablename__ = "compliance_mappings"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    requirement_id = Column(Uuid(as_uuid=True), ForeignKey("requirements.id"), nullable=False)
+    standard_clause_id = Column(Uuid(as_uuid=True), ForeignKey("standard_clauses.id"), nullable=False)
+    compliance_status = Column(String, nullable=False)
+    justification = Column(String, nullable=True)
+    created_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+    requirement = relationship("Requirement")
+    standard_clause = relationship("StandardClause", back_populates="mappings")
+    created_by = relationship("User")
+
+    __table_args__ = (
+        Index("ix_compliance_mappings_requirement_id", "requirement_id"),
+        Index("ix_compliance_mappings_standard_clause_id", "standard_clause_id"),
+        Index("ix_compliance_mappings_status", "compliance_status"),
+    )

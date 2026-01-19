@@ -223,6 +223,7 @@ def accept_imported_clause(
     db.flush()
 
     create_requirement_version(db, requirement, user.id, change_reason="import_accept")
+    db.flush()
 
     edited_text = payload.edited_text
     if edited_text is not None and edited_text != clause.raw_text:
