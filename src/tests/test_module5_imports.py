@@ -1,3 +1,6 @@
+import io
+import zipfile
+
 from src.db.models import Requirement, User
 from src.db.session import SessionLocal
 from src.services.auth import get_or_create_role
@@ -30,11 +33,28 @@ def login(client, email: str, password: str) -> str:
     return response.json()["access_token"]
 
 
+def build_docx_bytes(text: str) -> bytes:
+    paragraphs = []
+    for line in text.splitlines():
+        paragraphs.append(f"<w:p><w:r><w:t>{line}</w:t></w:r></w:p>")
+    document_xml = (
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">"
+        "<w:body>"
+        + "".join(paragraphs)
+        + "</w:body></w:document>"
+    )
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("word/document.xml", document_xml)
+    return buffer.getvalue()
+
+
 def upload_import(client, token: str, content: str) -> dict:
     files = {
         "file": (
             "sample.docx",
-            content.encode("utf-8"),
+            build_docx_bytes(content),
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
     }
@@ -54,7 +74,7 @@ def test_owner_can_upload_and_viewer_denied(client):
     files = {
         "file": (
             "sample.docx",
-            content.encode("utf-8"),
+            build_docx_bytes(content),
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
     }
@@ -99,12 +119,22 @@ def test_accept_reject_and_source_trace(client):
 
     accept = client.post(
         f"/imports/{session['id']}/clauses/{clauses[0]['id']}/accept",
-        json={},
+        json={"edited_text": "Edited clause A"},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert accept.status_code == 200
     requirement = accept.json()
     assert requirement["source"] == "import"
+    assert requirement["text"] == "Edited clause A"
+
+    versions = client.get(
+        f"/requirements/{requirement['id']}/versions",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert versions.status_code == 200
+    version_data = versions.json()
+    assert len(version_data) >= 2
+    assert any(version["change_reason"] == "import_edit" for version in version_data)
 
     reject = client.post(
         f"/imports/{session['id']}/clauses/{clauses[1]['id']}/reject",

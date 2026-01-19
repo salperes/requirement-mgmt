@@ -11,7 +11,7 @@ from src.api.deps import get_db, require_permission
 from src.api.schemas import ClauseAcceptRequest, ImportSessionOut, ImportedClauseOut, RequirementOut
 from src.db.models import ImportSession, ImportedClause, Requirement, SourceReference, User
 from src.services.audit import write_audit
-from src.services.imports import infer_file_type, segment_clauses
+from src.services.imports import extract_text, infer_file_type, segment_clauses
 from src.services.requirements import create_requirement_version, generate_req_code
 from src.shared.errors import AppError
 
@@ -90,7 +90,7 @@ def create_import_session(
 
     try:
         raw_bytes = file.file.read()
-        text = raw_bytes.decode("utf-8", errors="ignore")
+        text = extract_text(raw_bytes, file_type)
         clauses = segment_clauses(text, file_type)
         for clause in clauses:
             record = ImportedClause(
@@ -223,6 +223,13 @@ def accept_imported_clause(
     db.flush()
 
     create_requirement_version(db, requirement, user.id, change_reason="import_accept")
+
+    edited_text = payload.edited_text
+    if edited_text is not None and edited_text != clause.raw_text:
+        requirement.text = edited_text
+        requirement.updated_at = datetime.utcnow()
+        create_requirement_version(db, requirement, user.id, change_reason="import_edit")
+        metadata["edited_text"] = edited_text
 
     source_ref = SourceReference(
         requirement_id=requirement.id,

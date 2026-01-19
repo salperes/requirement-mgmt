@@ -349,6 +349,7 @@ class ImportedClauseOut(BaseModel):
 
 class ClauseAcceptRequest(BaseModel):
     title: Optional[str] = None
+    edited_text: Optional[str] = None
     discipline: Optional[Discipline] = None
     req_type_primary: Optional[RequirementType] = None
     req_type_secondary: Optional[List[str]] = None

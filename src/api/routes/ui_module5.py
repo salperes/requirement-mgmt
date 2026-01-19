@@ -138,6 +138,7 @@ def module5_ui() -> str:
         <button class="secondary" onclick="listImports()">List Imports</button>
         <label>Import ID</label>
         <input id="import-id" placeholder="import session id" />
+        <button onclick="loadImport()">Load Import</button>
         <button onclick="loadClauses()">Load Clauses</button>
         <pre id="clauses-out"></pre>
       </section>
@@ -175,6 +176,8 @@ def module5_ui() -> str:
         </div>
         <label>Title (optional)</label>
         <input id="clause-title" />
+        <label>Edit Text (optional)</label>
+        <textarea id="clause-edit"></textarea>
         <button onclick="acceptClause()">Accept</button>
         <button class="secondary" onclick="rejectClause()">Reject</button>
         <pre id="review-out"></pre>
@@ -215,6 +218,13 @@ def module5_ui() -> str:
         write("clauses-out", await res.json());
       }
 
+      async function loadImport() {
+        const importId = document.getElementById("import-id").value.trim();
+        if (!importId) return;
+        const res = await api(`/imports/${importId}`);
+        write("clauses-out", await res.json());
+      }
+
       async function loadClauses() {
         const importId = document.getElementById("import-id").value.trim();
         if (!importId) return;
@@ -228,6 +238,7 @@ def module5_ui() -> str:
         if (!importId || !clauseId) return;
         const payload = {
           title: document.getElementById("clause-title").value || null,
+          edited_text: document.getElementById("clause-edit").value || null,
           discipline: document.getElementById("clause-discipline").value || null,
           req_type_primary: document.getElementById("clause-type").value || null,
         };

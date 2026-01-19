@@ -19,6 +19,7 @@ dependencies = [
   "bcrypt<4",
   "email-validator>=2.0",
   "psycopg2-binary>=2.9",
+  "pypdf>=4.2",
 ]
 
 [project.optional-dependencies]
