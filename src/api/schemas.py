@@ -458,3 +458,37 @@ class RequirementSourceClause(BaseModel):
 class RequirementSourceOut(BaseModel):
     requirement_id: str
     sources: List[RequirementSourceClause]
+
+
+class ProjectCreate(BaseModel):
+    name: str = Field(min_length=1)
+    description: Optional[str] = None
+    enforce_regulatory_mapping: bool = False
+
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    enforce_regulatory_mapping: Optional[bool] = None
+
+
+class ProjectOut(BaseModel):
+    id: str
+    name: str
+    description: Optional[str]
+    enforce_regulatory_mapping: bool
+    created_by_user_id: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class UnmappedRequirementItem(BaseModel):
+    id: str
+    req_code: str
+    title: Optional[str]
+
+
+class ComplianceValidationOut(BaseModel):
+    valid: bool
+    enforce_regulatory_mapping: bool
+    unmapped_regulatory_requirements: List[UnmappedRequirementItem]

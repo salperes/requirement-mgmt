@@ -18,14 +18,21 @@ from src.api.schemas import (
     ComplianceMappingOut,
     ComplianceReportOut,
     ComplianceRow,
+    ComplianceValidationOut,
     StandardClauseCreate,
     StandardClauseOut,
     StandardCreate,
     StandardOut,
+    UnmappedRequirementItem,
 )
 from src.db.models import BaselineItem, ComplianceMapping, Requirement, Standard, StandardClause, User
 from src.services.audit import write_audit
-from src.services.compliance import build_compliance_rows, build_gap_analysis, upsert_compliance_mapping
+from src.services.compliance import (
+    build_compliance_rows,
+    build_gap_analysis,
+    upsert_compliance_mapping,
+    validate_regulatory_mapping,
+)
 from src.shared.errors import AppError
 
 router = APIRouter(tags=["compliance"])
@@ -405,3 +412,30 @@ def export_compliance(
             + " |\n"
         )
     return PlainTextResponse(output.getvalue(), media_type="text/markdown")
+
+
+@router.get("/compliance/validate", response_model=ComplianceValidationOut)
+def validate_compliance(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission("compliance:read")),
+    baseline_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+) -> ComplianceValidationOut:
+    """
+    Validate that all regulatory requirements have at least one compliance mapping.
+    When enforce_regulatory_mapping is enabled on the project, returns valid=false
+    if any regulatory requirements are unmapped.
+    """
+    result = validate_regulatory_mapping(db, baseline_id, project_id)
+    return ComplianceValidationOut(
+        valid=result["valid"],
+        enforce_regulatory_mapping=result["enforce_regulatory_mapping"],
+        unmapped_regulatory_requirements=[
+            UnmappedRequirementItem(
+                id=item["id"],
+                req_code=item["req_code"],
+                title=item["title"],
+            )
+            for item in result["unmapped_regulatory_requirements"]
+        ],
+    )

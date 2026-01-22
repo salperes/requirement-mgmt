@@ -1,37 +1,113 @@
 # Gap Analysis (Docs vs Implementation)
 
-Last updated: 2026-01-19
-Scope: All `docs/**/*.md` except Module-6 exclusions are not applied (note: module-6 is included here per request).
+Last updated: 2026-01-22
+Scope: All `docs/**/*.md` modules (0-6).
 
-## Module-6 � Compliance Matrix (Missing)
-- Missing DB schema + migrations for `standards`, `standard_clauses`, `compliance_mappings`. (docs/modules/module-6/db_schema_module6.md)
-- Missing API endpoints:
-  - POST/GET /standards
-  - GET /standards/{id}
-  - POST/GET /standards/{id}/clauses
-  - POST /compliance-mappings
-  - GET /compliance?baseline_id=&standard_id=
-  - GET /compliance/export?format=csv|md|xlsx
-  (docs/modules/module-6/api_contract_module6.md)
-- Missing services for compliance matrix, gap analysis, and export. (docs/modules/module-6/module_6_spec.md, compliance_rules.md)
-- Missing RBAC permissions: `standard:manage`, `compliance:map`, `compliance:read`, `compliance:export`. (docs/modules/module-6/permissions_matrix_module6.md)
-- Missing UI screens for standards library, compliance matrix, gap analysis. (docs/modules/module-6/ui_mvp_screens_module6.md)
-- Missing acceptance tests for module-6. (docs/modules/module-6/acceptance_tests_module6.md)
+---
 
-## Module-0/Module-1 UI (Missing)
-- No UI routes for Module-0 login/me/admin users and Module-1 requirements/baselines screens.
-  (docs/ui_mvp_screens.md)
+## Summary
 
-## Module-3 Coverage/Gaps (Partial)
-- Orphans endpoint only reports tests; design/standard orphan lists are empty.
-  (docs/modules/module-3/module_3_spec.md)
-- No dedicated coverage/missing-links or unverified-requirements report beyond RTM view.
-  (docs/modules/module-3/module_3_spec.md)
+| Module | Backend API | Services | DB Schema | Tests | UI | Status |
+|--------|-------------|----------|-----------|-------|-----|--------|
+| 0 - Auth/RBAC/Audit | ✅ | ✅ | ✅ | ✅ | ❌ | Backend Complete |
+| 1 - Requirements/Baselines | ✅ | ✅ | ✅ | ✅ | ❌ | Backend Complete |
+| 2 - Workflow/Comments | ✅ | ✅ | ✅ | ✅ | ❌ | Backend Complete* |
+| 3 - Traceability/RTM | ✅ | ✅ | ✅ | ✅ | ❌ | Backend Complete* |
+| 4 - Verification/Evidence | ✅ | ✅ | ✅ | ✅ | ❌ | Backend Complete |
+| 5 - Import/Parsing | ✅ | ✅ | ✅ | ✅ | ❌ | Backend Complete* |
+| 6 - Compliance Matrix | ✅ | ✅ | ✅ | ✅ | ❌ | Backend Complete |
 
-## Module-2 Status-Based Edit Rules (Not enforced)
-- Requirement updates are not restricted by status (Draft/Review/Approved/Rejected) as recommended.
-  (docs/modules/module-2/workflow_rules.md)
+**Legend**: ✅ Implemented | ❌ Not Implemented | * Minor gaps noted below
 
-## Module-5 Immutability (Not enforced in DB)
-- Imported clauses/source references are intended to be immutable; currently no DB-level enforcement.
-  (docs/modules/module-5/migrations_plan_module5.md, qa_checklist_module5.md)
+---
+
+## Remaining Gaps
+
+### 1. UI Layer (All Modules) - NOT IMPLEMENTED
+
+No frontend implementation exists. All UI screens documented remain unimplemented:
+
+- **Module-0**: Login, user profile, admin console (`docs/ui_mvp_screens.md`)
+- **Module-1**: Requirements list, detail, baseline management (`docs/ui_mvp_screens.md`)
+- **Module-2**: Workflow transitions, comments panel (`docs/modules/module-2/ui_mvp_screens_module2.md`)
+- **Module-3**: RTM matrix view, impact analysis (`docs/modules/module-3/ui_mvp_screens_module3.md`)
+- **Module-4**: Test case management, verification results (`docs/modules/module-4/ui_mvp_screens_module4.md`)
+- **Module-5**: Import wizard, document preview (`docs/modules/module-5/ui_mvp_screens_module5.md`)
+- **Module-6**: Standards library, compliance matrix (`docs/modules/module-6/ui_mvp_screens_module6.md`)
+
+### 2. Module-2: Status-Based Edit Restrictions (NOT ENFORCED)
+
+Requirement updates are not restricted by workflow status as specified.
+
+- **Expected**: Edits blocked when status is `APPROVED` or `IN_REVIEW` (unless user has override permission)
+- **Current**: Any user with `requirement:update` can edit regardless of status
+- **Reference**: `docs/modules/module-2/workflow_rules.md`
+
+### 3. Module-3: Orphan and Coverage Reports (PARTIAL)
+
+- Orphans endpoint (`/traceability/orphans`) only reports unlinked test cases
+- Design document and standard clause orphan detection returns empty lists
+- No dedicated coverage percentage or missing-links summary report
+- **Reference**: `docs/modules/module-3/module_3_spec.md`
+
+### 4. Module-5: Import Immutability (NOT ENFORCED)
+
+- Imported clauses and source references should be immutable after import completion
+- Currently no DB-level constraint prevents modification
+- **Expected**: `UPDATE` trigger or application-level block on `imported_clauses`, `source_references`
+- **Reference**: `docs/modules/module-5/migrations_plan_module5.md`, `docs/modules/module-5/qa_checklist_module5.md`
+
+---
+
+## Closed Gaps (Previously Identified)
+
+### ✅ Module-6: Compliance Matrix - RESOLVED (2026-01-22)
+
+All previously missing items have been implemented:
+
+- DB schema: `Standard`, `StandardClause`, `ComplianceMapping` tables (`src/db/migrations/versions/0007_module6_compliance.py`)
+- API endpoints in `src/api/routes/compliance.py`:
+  - `POST /standards`, `GET /standards`, `GET /standards/{id}`
+  - `POST /standards/{id}/clauses`, `GET /standards/{id}/clauses`
+  - `POST /compliance-mappings`
+  - `GET /compliance?baseline_id=&standard_id=`
+  - `GET /compliance/export?format=csv|md|xlsx`
+- Services: `src/services/compliance.py` (gap analysis, compliance matrix, export)
+- RBAC permissions: `standard:manage`, `compliance:map`, `compliance:read`, `compliance:export`
+- Tests: `src/tests/test_module6_compliance.py`
+
+### ✅ Module-6: Regulatory Mapping Enforcement - RESOLVED (2026-01-22)
+
+Optional enforcement for regulatory requirements mapping:
+
+- DB schema: `Project` table with `enforce_regulatory_mapping` flag (`src/db/migrations/versions/0008_projects.py`)
+- API endpoints in `src/api/routes/projects.py`:
+  - `POST /projects`, `GET /projects`, `GET /projects/{id}`, `PATCH /projects/{id}`
+- Validation endpoint in `src/api/routes/compliance.py`:
+  - `GET /compliance/validate?project_id=&baseline_id=`
+- Services: `src/services/compliance.py` (`validate_regulatory_mapping` function)
+- RBAC permissions: `project:create`, `project:update`, `project:read`
+- Tests: `src/tests/test_projects_compliance_validation.py`
+- Documentation: `docs/modules/module-6/compliance_rules.md`, `docs/modules/module-6/api_contract_module6.md`
+
+---
+
+## Statistics
+
+| Category | Count |
+|----------|-------|
+| Documentation files | 67 |
+| Python source files | 67 |
+| Database models | 28 tables |
+| API route files | 19 |
+| Service files | 14 |
+| Test files | 12 |
+
+---
+
+## Next Steps (Recommended Priority)
+
+1. **High**: Implement status-based edit restrictions (Module-2)
+2. **Medium**: Add import immutability enforcement (Module-5)
+3. **Medium**: Complete orphan detection for design docs and standards (Module-3)
+4. **Low**: Build frontend UI layer (all modules)

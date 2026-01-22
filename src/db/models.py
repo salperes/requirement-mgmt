@@ -364,6 +364,25 @@ class SourceReference(Base):
     )
 
 
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    enforce_regulatory_mapping = Column(Boolean, nullable=False, default=False)
+    created_by_user_id = Column(Uuid(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    created_by = relationship("User")
+
+
 class Standard(Base):
     __tablename__ = "standards"
 

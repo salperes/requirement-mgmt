@@ -6,7 +6,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from src.db.models import ComplianceMapping, Requirement, StandardClause
+from src.db.models import BaselineItem, ComplianceMapping, Project, Requirement, StandardClause
 
 
 def ensure_uuid(value: Union[str, uuid.UUID]) -> uuid.UUID:
@@ -144,3 +144,79 @@ def upsert_compliance_mapping(
     session.commit()
     session.refresh(mapping)
     return mapping
+
+
+def get_project_setting(session: Session, project_id: Optional[str]) -> Optional[Project]:
+    """Get project by ID, returns None if not found or project_id is None."""
+    if not project_id:
+        return None
+    try:
+        proj_uuid = ensure_uuid(project_id)
+    except ValueError:
+        return None
+    return session.query(Project).filter(Project.id == proj_uuid).one_or_none()
+
+
+def validate_regulatory_mapping(
+    session: Session,
+    baseline_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+) -> dict:
+    """
+    Validate that all regulatory requirements have at least one compliance mapping.
+
+    Returns:
+        {
+            "valid": bool,
+            "enforce_regulatory_mapping": bool,
+            "unmapped_regulatory_requirements": [{"id": str, "req_code": str, "title": str}]
+        }
+    """
+    # Check project setting
+    project = get_project_setting(session, project_id)
+    enforce = project.enforce_regulatory_mapping if project else False
+
+    # Get requirement IDs to check
+    if baseline_id:
+        baseline_uuid = ensure_uuid(baseline_id)
+        items = session.query(BaselineItem).filter(BaselineItem.baseline_id == baseline_uuid).all()
+        requirement_ids = [item.requirement_id for item in items]
+    else:
+        requirements = (
+            session.query(Requirement)
+            .filter(Requirement.deleted_at.is_(None))
+            .all()
+        )
+        requirement_ids = [req.id for req in requirements]
+
+    # Filter to regulatory requirements only
+    regulatory_reqs = (
+        session.query(Requirement)
+        .filter(Requirement.id.in_(requirement_ids))
+        .filter(Requirement.req_type_primary == "Regulatory")
+        .filter(Requirement.deleted_at.is_(None))
+        .all()
+    )
+
+    # Find which regulatory requirements have at least one mapping
+    unmapped = []
+    for req in regulatory_reqs:
+        mapping_exists = (
+            session.query(ComplianceMapping)
+            .filter(ComplianceMapping.requirement_id == req.id)
+            .first()
+        )
+        if not mapping_exists:
+            unmapped.append({
+                "id": str(req.id),
+                "req_code": req.req_code,
+                "title": req.title,
+            })
+
+    valid = len(unmapped) == 0 if enforce else True
+
+    return {
+        "valid": valid,
+        "enforce_regulatory_mapping": enforce,
+        "unmapped_regulatory_requirements": unmapped,
+    }

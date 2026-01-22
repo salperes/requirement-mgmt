@@ -12,6 +12,7 @@ from src.api.routes import (
     health,
     imports,
     notifications,
+    projects,
     requirements,
     test_cases,
     traceability,
@@ -46,6 +47,7 @@ def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(projects.router)
 app.include_router(requirements.router)
 app.include_router(baselines.router)
 app.include_router(comments.router)
