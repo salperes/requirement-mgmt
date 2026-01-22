@@ -8,6 +8,9 @@ ROLE_PERMISSIONS = {
         "admin:users:write",
         "admin:roles:write",
         "audit:read",
+        "project:create",
+        "project:update",
+        "project:read",
         "req:create",
         "req:read",
         "req:update",
@@ -46,6 +49,7 @@ ROLE_PERMISSIONS = {
     "RequirementOwner": {
         "auth:login",
         "auth:me",
+        "project:read",
         "req:create",
         "req:read",
         "req:update",
@@ -79,6 +83,7 @@ ROLE_PERMISSIONS = {
     "Reviewer": {
         "auth:login",
         "auth:me",
+        "project:read",
         "req:read",
         "req:versions:read",
         "req:comment:create",
@@ -103,6 +108,7 @@ ROLE_PERMISSIONS = {
     "Approver": {
         "auth:login",
         "auth:me",
+        "project:read",
         "req:read",
         "req:versions:read",
         "req:comment:create",
@@ -126,6 +132,7 @@ ROLE_PERMISSIONS = {
     "Viewer": {
         "auth:login",
         "auth:me",
+        "project:read",
         "req:read",
         "req:versions:read",
         "notif:read",
